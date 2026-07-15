@@ -24,18 +24,20 @@ class PSDatabase {
 	function connect() {
 		if (!$this->db) {
 			try {
+				// PostgreSQL connection string
+				// Removed MySQL-specific options: charset, wait_timeout
 				$this->db = new PDO(
-					"mysql:dbname={$this->database};host={$this->server};charset={$this->charset};wait_timeout=7200",
+					"pgsql:dbname={$this->database};host={$this->server};port=5432",
 					$this->username,
 					$this->password,
 					[PDO::ATTR_PERSISTENT => true]
 				);
 				$this->db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 			} catch (PDOException $e) {
-				if (strpos($e->getMessage(), '1040') !== false || strpos($e->getMessage(), 'Too many connections') !== false) {
+				if (strpos($e->getMessage(), 'FATAL') !== false || strpos($e->getMessage(), 'connection') !== false) {
 					http_response_code(503);
 					header('Content-Type: text/plain');
-					die("Database temporarily unavailable due to high load. Please try again in a few minutes.");
+					die("Database temporarily unavailable. Please try again in a few minutes.");
 				}
 				// hide passwords and stuff from stacktrace
 				throw new ErrorException($e->getMessage());

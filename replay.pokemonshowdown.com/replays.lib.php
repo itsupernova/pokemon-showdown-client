@@ -20,10 +20,11 @@ class Replays {
 			if (@$this->config['connection_string']) {
 				$this->db = new PDO($this->config['connection_string']);
 			} else {
+				// PostgreSQL driver is now the default instead of MySQL
 				$this->db = new PDO(
-					''.($this->config['driver'] ?? 'mysql').':dbname='.$this->config['database'].
+					''.($this->config['driver'] ?? 'pgsql').':dbname='.$this->config['database'].
 					';host='.$this->config['server'].
-					(@$this->config['port'] ? (';port='.$this->config['port']) : '').
+					(@$this->config['port'] ? (';port='.$this->config['port']) : ';port=5432').
 					(@$this->config['sslmode'] ? (';sslmode='.$this->config['sslmode']) : '').
 					(@$this->config['charset'] ? (';charset='.$this->config['charset']) : ''),
 					$this->config['username'],
@@ -53,25 +54,26 @@ class Replays {
 	function edit($replay) {
 		if ($replay['private'] === 3) {
 			$replay['private'] = 3;
-			$res = $this->db->prepare("UPDATE replays SET private = 3, password = NULL WHERE id = ? LIMIT 1");
+			// PostgreSQL: LIMIT clause is not used in UPDATE statements
+			$res = $this->db->prepare("UPDATE replays SET private = 3, password = NULL WHERE id = ?");
 			$res->execute([$replay['id']]);
 			$res = $this->db->prepare("UPDATE replayplayers SET private = 3, password = NULL WHERE id = ?");
 			$res->execute([$replay['id']]);
 		} else if ($replay['private'] === 2) {
 			$replay['private'] = 1;
 			$replay['password'] = NULL;
-			$res = $this->db->prepare("UPDATE replays SET private = 1, password = NULL WHERE id = ? LIMIT 1");
+			$res = $this->db->prepare("UPDATE replays SET private = 1, password = NULL WHERE id = ?");
 			$res->execute([$replay['id']]);
 			$res = $this->db->prepare("UPDATE replayplayers SET private = 1, password = NULL WHERE id = ?");
 			$res->execute([$replay['id']]);
 		} else if ($replay['private']) {
 			if (!$replay['password']) $replay['password'] = $this->genPassword();
-			$res = $this->db->prepare("UPDATE replays SET private = 1, password = ? WHERE id = ? LIMIT 1");
+			$res = $this->db->prepare("UPDATE replays SET private = 1, password = ? WHERE id = ?");
 			$res->execute([$replay['password'], $replay['id']]);
 			$res = $this->db->prepare("UPDATE replayplayers SET private = 1, password = ? WHERE id = ?");
 			$res->execute([$replay['password'], $replay['id']]);
 		} else {
-			$res = $this->db->prepare("UPDATE replays SET private = 0, password = NULL WHERE id = ? LIMIT 1");
+			$res = $this->db->prepare("UPDATE replays SET private = 0, password = NULL WHERE id = ?");
 			$res->execute([$replay['id']]);
 			$res = $this->db->prepare("UPDATE replayplayers SET private = 0, password = NULL WHERE id = ?");
 			$res->execute([$replay['id']]);
@@ -85,6 +87,7 @@ class Replays {
 			$this->init();
 		}
 
+		// PostgreSQL: LIMIT clause works the same way
 		$res = $this->db->prepare("SELECT * FROM replays WHERE id = ? LIMIT 1");
 		$res->execute([$id]);
 		if (!$res) return [];
@@ -95,7 +98,7 @@ class Replays {
 			if ($player[0] === '!') $player = substr($player, 1);
 		}
 
-		$res = $this->db->prepare("UPDATE replays SET views = views + 1 WHERE id = ? LIMIT 1");
+		$res = $this->db->prepare("UPDATE replays SET views = views + 1 WHERE id = ?");
 		$res->execute([$id]);
 
 		$replay['safe_inputlog'] = (
